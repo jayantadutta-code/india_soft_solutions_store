@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iss_app/pages/AgeCalculator.dart';
 import 'package:iss_app/pages/BmiCalculator.dart';
 import 'package:iss_app/pages/EventCountdown.dart';
 import 'package:iss_app/pages/FullAnimation.dart';
@@ -34,6 +35,8 @@ class _HomePageState extends State<HomePage> {
       GridItem(title: "Notes", image: "assets/images/notes.png", page: TestDBScreen(),),
       GridItem(title: "Work Progress Tracker", image: "assets/images/wPT.png", page: WorkProgressTracker(),),
       GridItem(title: "Event Countdown", image: "assets/images/eventCountdown.png", page: EventCountdown(),),
+      GridItem(title: "Age Claculator", image: "assets/images/ageCalculator.png", page: AgeCalculator(),),
+
       // Add all 16 items here
     ];
 
