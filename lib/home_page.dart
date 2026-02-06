@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:iss_app/pages/BmiCalculator.dart';
+import 'package:iss_app/pages/EventCountdown.dart';
 import 'package:iss_app/pages/FullAnimation.dart';
 import 'package:iss_app/pages/NextLevelAnimation.dart';
 import 'package:iss_app/pages/TempConverter.dart';
 import 'package:iss_app/pages/TestDBScreen.dart';
+import 'package:iss_app/pages/WorkProgressTracker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:reorderables/reorderables.dart';
 import 'models/grid_item.dart';
@@ -30,6 +32,8 @@ class _HomePageState extends State<HomePage> {
       GridItem(title: "Splash 1", image: "assets/images/img2.png", page: NextLevelAnimation(),),
       GridItem(title: "Splash 2", image: "assets/images/img3.png", page: FullAnimation(),),
       GridItem(title: "Notes", image: "assets/images/notes.png", page: TestDBScreen(),),
+      GridItem(title: "Work Progress Tracker", image: "assets/images/wPT.png", page: WorkProgressTracker(),),
+      GridItem(title: "Event Countdown", image: "assets/images/eventCountdown.png", page: EventCountdown(),),
       // Add all 16 items here
     ];
 
