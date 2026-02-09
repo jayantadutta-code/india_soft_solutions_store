@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:iss_app/SplashScreen.dart';
+
 import 'package:flutter/services.dart';
 import 'package:iss_app/auth_page.dart';
 
