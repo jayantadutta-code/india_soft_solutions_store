@@ -1,4 +1,4 @@
-<img src="assets/images/icon.png.jpeg" width="100" alt="Dynamic Dashboard"> India Soft Solutions Store
+<img src="assets/images/icon.png" width="100" alt="Dynamic Dashboard"> India Soft Solutions Store
 
 A digital store for showcasing and distributing software solutions, apps, and digital products built with modern technologies.
 
