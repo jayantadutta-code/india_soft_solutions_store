@@ -40,9 +40,10 @@ A digital store for showcasing and distributing software solutions, apps, and di
 
 🚀 Quick Start
 git clone https://github.com/jayantadutta-code/india_soft_solutions_store
-cd india_soft_solutions_store
-flutter pub get
-flutter run
+
+    cd india_soft_solutions_store
+    flutter pub get
+    flutter run
 
 🔧 Setup
 
