@@ -9,7 +9,8 @@ const platform = MethodChannel("secure.screen");
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Disable screenshot for entire app
+  // Disable/enable screenshot for entire app
+  // await platform.invokeMethod("enableScreenshot");
   await platform.invokeMethod("disableScreenshot");
   // Disable Screen Rotation
   await SystemChrome.setPreferredOrientations([

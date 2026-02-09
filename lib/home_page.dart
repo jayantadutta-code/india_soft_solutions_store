@@ -8,6 +8,7 @@ import 'package:iss_app/pages/NextLevelAnimation.dart';
 import 'package:iss_app/pages/TempConverter.dart';
 import 'package:iss_app/pages/TestDBScreen.dart';
 import 'package:iss_app/pages/WorkProgressTracker.dart';
+import 'package:iss_app/pages/BmiCalculatorPro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:reorderables/reorderables.dart';
 import 'models/grid_item.dart';
@@ -38,6 +39,7 @@ class _HomePageState extends State<HomePage> {
       GridItem(title: "Event Countdown", image: "assets/images/eventCountdown.png", page: EventCountdown(),),
       GridItem(title: "Age Claculator", image: "assets/images/ageCalculator.png", page: AgeCalculator(),),
       GridItem(title: "Bithday Countdown", image: "assets/images/BirthDayCounter.png", page: BirthdayCountdown(),),
+      GridItem(title: "BMI Calculator Pro", image: "assets/images/bmi_cal_pro.png", page: BmiCalculatorPro(),),
 
       // Add all 16 items here
     ];
