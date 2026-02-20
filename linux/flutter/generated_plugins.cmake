@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   printing
   url_launcher_linux
+  videosdk_webrtc
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
