@@ -114,17 +114,22 @@ class _HomePageState extends State<HomePage> {
           ),
 
           Expanded(
-            child: ReorderableWrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: tiles,
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  final item = items.removeAt(oldIndex);
-                  items.insert(newIndex, item);
-                  saveOrder();
-                });
-              },
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 70.0), // Add extra bottom padding here
+                child: ReorderableWrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: tiles,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      final item = items.removeAt(oldIndex);
+                      items.insert(newIndex, item);
+                      saveOrder();
+                    });
+                  },
+                ),
+              ),
             ),
           ),
         ],
