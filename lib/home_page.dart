@@ -5,6 +5,7 @@ import 'package:iss_app/pages/BmiCalculator.dart';
 import 'package:iss_app/pages/EventCountdown.dart';
 import 'package:iss_app/pages/FullAnimation.dart';
 import 'package:iss_app/pages/NextLevelAnimation.dart';
+import 'package:iss_app/pages/NotesPro.dart';
 import 'package:iss_app/pages/TempConverter.dart';
 import 'package:iss_app/pages/TestDBScreen.dart';
 import 'package:iss_app/pages/WorkProgressTracker.dart';
@@ -44,6 +45,7 @@ class _HomePageState extends State<HomePage> {
       GridItem(title: "BMI Calculator Pro", image: "assets/images/bmi_cal_pro.png", page: BmiCalculatorPro(),),
       GridItem(title: "Health Tracker", image: "assets/images/health_tracker.png", page: HealthTracker(),),
       GridItem(title: "Nest", image: "assets/images/nest.png", page: NestApp(),),
+      GridItem(title: "Notes Pro", image: "assets/images/notespro.png", page: TodoScreen(),),
 
       // Add all 16 items here
     ];
