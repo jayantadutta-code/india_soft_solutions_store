@@ -40,12 +40,12 @@ class _HomePageState extends State<HomePage> {
       GridItem(title: "Notes", image: "assets/images/notes.png", page: TestDBScreen(),),
       GridItem(title: "Work Progress Tracker", image: "assets/images/wPT.png", page: WorkProgressTracker(),),
       GridItem(title: "Event Countdown", image: "assets/images/eventCountdown.png", page: EventCountdown(),),
-      GridItem(title: "Age Claculator", image: "assets/images/ageCalculator.png", page: AgeCalculator(),),
-      GridItem(title: "Bithday Countdown", image: "assets/images/BirthDayCounter.png", page: BirthdayCountdown(),),
+      GridItem(title: "Age Calculator", image: "assets/images/ageCalculator.png", page: AgeCalculator(),),
+      GridItem(title: "Birthday Countdown", image: "assets/images/BirthDayCounter.png", page: BirthdayCountdown(),),
       GridItem(title: "BMI Calculator Pro", image: "assets/images/bmi_cal_pro.png", page: BmiCalculatorPro(),),
       GridItem(title: "Health Tracker", image: "assets/images/health_tracker.png", page: HealthTracker(),),
       GridItem(title: "Nest", image: "assets/images/nest.png", page: NestApp(),),
-      GridItem(title: "Notes Pro", image: "assets/images/notespro.png", page: TodoScreen(),),
+      GridItem(title: "Notes Pro", image: "assets/images/notespro.png", page: NotesPro(),),
 
       // Add all 16 items here
     ];
