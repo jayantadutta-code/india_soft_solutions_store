@@ -1,11 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 
 // ================= MODEL =================
 class Todo {
@@ -23,7 +21,6 @@ class Todo {
   List<String> notes;
   List<String> links;
 
-
   Todo({
     required this.id,
     required this.title,
@@ -39,7 +36,6 @@ class Todo {
     this.notes = const [],
     this.links = const [],
   }) : subTodos = subTodos ?? [];
-
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -57,9 +53,7 @@ class Todo {
     'links': links,
   };
 
-
   factory Todo.fromJson(Map<String, dynamic> json) {
-    // Migrate old videoUrl field to links
     List<String> links = json['links'] != null
         ? List<String>.from(json['links'])
         : [];
@@ -72,9 +66,7 @@ class Todo {
       id: json['id'],
       title: json['title'],
       subTodos: json['subTodos'] != null
-          ? (json['subTodos'] as List)
-          .map((e) => Todo.fromJson(e))
-          .toList()
+          ? (json['subTodos'] as List).map((e) => Todo.fromJson(e)).toList()
           : [],
       parentId: json['parentId'],
       parentChain: json['parentChain'] != null
@@ -98,29 +90,40 @@ class Todo {
   }
 }
 
-
-// ================= ENTRY POINT ================= 
-// ================= MAIN SCREEN WITH BOTTOM NAV =================
-class NotesPro extends StatefulWidget {
+// ================= ENTRY POINT =================
+class NotesPro extends StatelessWidget {
   const NotesPro({super.key});
 
-
   @override
-  State<NotesPro> createState() => _NotesProState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: '4th Gen Indexing ToDos',
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        useMaterial3: true,
+      ),
+      home: const NotesProMainSc(),
+    );
+  }
 }
 
+// ================= MAIN SCREEN WITH BOTTOM NAV =================
+class NotesProMainSc extends StatefulWidget {
+  const NotesProMainSc({super.key});
 
-class _NotesProState extends State<NotesPro> {
+  @override
+  State<NotesProMainSc> createState() => _NotesProMainScState();
+}
+
+class _NotesProMainScState extends State<NotesProMainSc> {
   List<Todo> todos = [];
   List<Todo> recycleBin = [];
-
 
   String filterType = 'All';
   String completionFilter = 'All';
 
-
   int _currentIndex = 0;
-
 
   @override
   void initState() {
@@ -128,37 +131,32 @@ class _NotesProState extends State<NotesPro> {
     loadData();
   }
 
-
   Future<void> saveData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('todos', jsonEncode(todos.map((e) => e.toJson()).toList()));
     await prefs.setString('bin', jsonEncode(recycleBin.map((e) => e.toJson()).toList()));
   }
 
-
   Future<void> loadData() async {
     final prefs = await SharedPreferences.getInstance();
     final todoData = prefs.getString('todos');
     final binData = prefs.getString('bin');
-
 
     if (todoData != null) {
       todos = (jsonDecode(todoData) as List).map((e) => Todo.fromJson(e)).toList();
       todos.sort((a, b) => a.order.compareTo(b.order));
     }
 
-
     if (binData != null) {
       recycleBin = (jsonDecode(binData) as List).map((e) => Todo.fromJson(e)).toList();
     }
 
-
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
-
-  // ================= CRUD OPERATIONS (with notes & links) =================
+  // ================= CRUD OPERATIONS =================
   void addTodo(String title, List<String> notes, List<String> links) {
+    if (!mounted) return;
     setState(() {
       final newTodo = Todo(
         id: DateTime.now().toString(),
@@ -174,8 +172,8 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   void addSubTodo(Todo parent, String title, List<String> notes, List<String> links) {
+    if (!mounted) return;
     setState(() {
       parent.subTodos.add(Todo(
         id: DateTime.now().toString(),
@@ -192,8 +190,8 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   void editTodo(Todo todo, String newTitle, List<String> newNotes, List<String> newLinks) {
+    if (!mounted) return;
     setState(() {
       todo.title = newTitle;
       todo.notes = newNotes.where((n) => n.trim().isNotEmpty).toList();
@@ -203,8 +201,8 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   void deleteTodo(Todo todo) {
+    if (!mounted) return;
     setState(() {
       todo.updatedAt = DateTime.now();
       final parent = findParentOfTodo(todo);
@@ -224,8 +222,8 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   void toggleCompletion(Todo todo) {
+    if (!mounted) return;
     setState(() {
       todo.isCompleted = !todo.isCompleted;
       todo.updatedAt = DateTime.now();
@@ -238,8 +236,8 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   void toggleAllSubtasks(Todo parent) {
+    if (!mounted) return;
     setState(() {
       bool allCompleted = parent.subTodos.every((sub) => sub.isCompleted);
       bool newStatus = !allCompleted;
@@ -263,9 +261,9 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   // ================= RESTORE LOGIC =================
   void restoreFromBin(Todo todo) {
+    if (!mounted) return;
     setState(() {
       if (todo.isSubTask && todo.parentChain != null && todo.parentChain!.isNotEmpty) {
         Todo? nearestParent = findNearestExistingParentFromChain(todo.parentChain);
@@ -291,9 +289,9 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   void restoreAllFromBin() {
     if (recycleBin.isEmpty) return;
+    if (!mounted) return;
     setState(() {
       List<Todo> itemsToRestore = List.from(recycleBin);
       itemsToRestore.sort((a, b) => a.order.compareTo(b.order));
@@ -323,28 +321,26 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   void permanentlyDelete(Todo todo) {
+    if (!mounted) return;
     setState(() {
       recycleBin.remove(todo);
     });
     saveData();
   }
 
-
   void emptyBin() {
+    if (!mounted) return;
     setState(() {
       recycleBin.clear();
     });
     saveData();
   }
 
-
   // ================= HELPER FUNCTIONS =================
   Todo? findParentById(String parentId) {
     return _findParentById(parentId, todos);
   }
-
 
   Todo? _findParentById(String parentId, List<Todo> todoList) {
     for (var todo in todoList) {
@@ -355,11 +351,9 @@ class _NotesProState extends State<NotesPro> {
     return null;
   }
 
-
   Todo? findParentOfTodo(Todo todo) {
     return _findParentOfTodo(todo, todos);
   }
-
 
   Todo? _findParentOfTodo(Todo todo, List<Todo> todoList) {
     for (var item in todoList) {
@@ -372,7 +366,6 @@ class _NotesProState extends State<NotesPro> {
     return null;
   }
 
-
   Todo? findNearestExistingParentFromChain(List<String>? parentChain) {
     if (parentChain == null || parentChain.isEmpty) return null;
     for (int i = parentChain.length - 1; i >= 0; i--) {
@@ -383,14 +376,12 @@ class _NotesProState extends State<NotesPro> {
     return null;
   }
 
-
   void _updateOrders(List<Todo> todoList) {
     for (int i = 0; i < todoList.length; i++) {
       todoList[i].order = i;
       _updateOrders(todoList[i].subTodos);
     }
   }
-
 
   bool isCircularReference(Todo source, Todo target) {
     if (target.parentId == source.id) return true;
@@ -400,9 +391,9 @@ class _NotesProState extends State<NotesPro> {
     return false;
   }
 
-
   // ================= DRAG & DROP =================
   void handleMainListReorder(int oldIndex, int newIndex) {
+    if (!mounted) return;
     setState(() {
       if (oldIndex < newIndex) newIndex -= 1;
       final item = todos.removeAt(oldIndex);
@@ -412,11 +403,11 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   void handleSubTaskReorderWithinParent(Todo dragged, Todo target) {
     if (!dragged.isSubTask || !target.isSubTask || dragged.parentId != target.parentId) return;
     final parent = findParentById(dragged.parentId!);
     if (parent == null) return;
+    if (!mounted) return;
     setState(() {
       int oldIndex = parent.subTodos.indexWhere((t) => t.id == dragged.id);
       int newIndex = parent.subTodos.indexWhere((t) => t.id == target.id);
@@ -429,9 +420,9 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   // ================= SELECTION =================
   void deleteSelected(List<String> selectedIds) {
+    if (!mounted) return;
     final List<Todo> deletedItems = [];
     void collectAndDelete(List<Todo> todoList, {Todo? parent}) {
       for (int i = todoList.length - 1; i >= 0; i--) {
@@ -453,7 +444,6 @@ class _NotesProState extends State<NotesPro> {
     saveData();
   }
 
-
   // ================= NAVIGATION =================
   void _onNavItemTapped(int index) {
     if (index == _currentIndex) return;
@@ -462,12 +452,12 @@ class _NotesProState extends State<NotesPro> {
       return;
     }
     Future.delayed(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
       setState(() {
         _currentIndex = index;
       });
     });
   }
-
 
   void _showAddDialog() => _showTodoDialog(
     title: 'Add Todo',
@@ -477,7 +467,6 @@ class _NotesProState extends State<NotesPro> {
     onSave: (title, notes, links) => addTodo(title, notes, links),
   );
 
-
   void _showEditDialog(Todo todo) => _showTodoDialog(
     title: todo.isSubTask ? 'Edit Sub Task' : 'Edit Todo',
     initialTitle: todo.title,
@@ -486,7 +475,6 @@ class _NotesProState extends State<NotesPro> {
     onSave: (newTitle, notes, links) => editTodo(todo, newTitle, notes, links),
   );
 
-
   void _showAddSubDialog(Todo parent) => _showTodoDialog(
     title: 'Add Sub Task',
     initialTitle: '',
@@ -494,7 +482,6 @@ class _NotesProState extends State<NotesPro> {
     initialLinks: const [],
     onSave: (newTitle, notes, links) => addSubTodo(parent, newTitle, notes, links),
   );
-
 
   // ================= UNIVERSAL DIALOG =================
   void _showTodoDialog({
@@ -506,10 +493,8 @@ class _NotesProState extends State<NotesPro> {
   }) {
     final titleController = TextEditingController(text: initialTitle);
 
-
     List<TextEditingController> noteControllers = [];
     List<TextEditingController> linkControllers = [];
-
 
     for (var note in initialNotes) {
       noteControllers.add(TextEditingController(text: note));
@@ -518,10 +503,9 @@ class _NotesProState extends State<NotesPro> {
       linkControllers.add(TextEditingController(text: link));
     }
 
-
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             void addNote() {
@@ -532,7 +516,6 @@ class _NotesProState extends State<NotesPro> {
               }
             }
 
-
             void addLink() {
               if (linkControllers.length < 3) {
                 setDialogState(() {
@@ -541,10 +524,8 @@ class _NotesProState extends State<NotesPro> {
               }
             }
 
-
             bool canAddNote = noteControllers.length < 3;
             bool canAddLink = linkControllers.length < 3;
-
 
             return AlertDialog(
               title: Text(
@@ -646,7 +627,6 @@ class _NotesProState extends State<NotesPro> {
                     ),
                     const SizedBox(height: 16),
 
-
                     // Descriptions section
                     if (noteControllers.isNotEmpty) ...[
                       Container(
@@ -704,7 +684,6 @@ class _NotesProState extends State<NotesPro> {
                       ),
                       const SizedBox(height: 12),
                     ],
-
 
                     // Links section
                     if (linkControllers.isNotEmpty) ...[
@@ -767,14 +746,14 @@ class _NotesProState extends State<NotesPro> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogContext),
                   child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   onPressed: () {
                     String newTitle = titleController.text.trim();
                     if (newTitle.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
                         const SnackBar(content: Text('Please enter a title')),
                       );
                       return;
@@ -788,7 +767,7 @@ class _NotesProState extends State<NotesPro> {
                         .where((s) => s.isNotEmpty)
                         .toList();
                     onSave(newTitle, notes, links);
-                    Navigator.pop(context);
+                    Navigator.pop(dialogContext);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
@@ -806,7 +785,6 @@ class _NotesProState extends State<NotesPro> {
     );
   }
 
-
   // ================= YOUTUBE LINK CHECK =================
   bool _isYouTubeLink(String url) {
     final lowerUrl = url.toLowerCase();
@@ -814,7 +792,6 @@ class _NotesProState extends State<NotesPro> {
         lowerUrl.contains('youtu.be') ||
         lowerUrl.contains('youtube-nocookie.com');
   }
-
 
   // ================= YOUTUBE LAUNCHER =================
   String _extractVideoId(String url) {
@@ -826,7 +803,6 @@ class _NotesProState extends State<NotesPro> {
     return match?.group(1) ?? '';
   }
 
-
   Future<void> _playVideo(String url) async {
     if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -835,8 +811,6 @@ class _NotesProState extends State<NotesPro> {
       return;
     }
 
-
-    // If it's a YouTube link, try to clean it
     String cleanUrl = url.trim();
     if (_isYouTubeLink(url)) {
       String videoId = _extractVideoId(url);
@@ -848,18 +822,15 @@ class _NotesProState extends State<NotesPro> {
       cleanUrl = 'https://$cleanUrl';
     }
 
-
     try {
       final Uri uri = Uri.parse(cleanUrl);
       bool launched = false;
-
 
       try {
         launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
       } catch (e) {
         // fallback
       }
-
 
       if (!launched) {
         try {
@@ -868,7 +839,6 @@ class _NotesProState extends State<NotesPro> {
           // ignore
         }
       }
-
 
       if (!launched) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -887,7 +857,6 @@ class _NotesProState extends State<NotesPro> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -912,7 +881,7 @@ class _NotesProState extends State<NotesPro> {
             onPlayVideo: _playVideo,
             isYouTubeLink: _isYouTubeLink,
           ),
-          Container(), // Add is handled separately (dialog)
+          Container(),
           RecycleBinPage(
             key: const ValueKey('recycle_bin'),
             recycleBin: recycleBin,
@@ -928,14 +897,14 @@ class _NotesProState extends State<NotesPro> {
             currentFilter: filterType,
             currentStatus: completionFilter,
             onFilterChanged: (value) {
-              if (value != null) {
+              if (value != null && mounted) {
                 setState(() {
                   filterType = value;
                 });
               }
             },
             onStatusChanged: (value) {
-              if (value != null) {
+              if (value != null && mounted) {
                 setState(() {
                   completionFilter = value;
                 });
@@ -968,7 +937,6 @@ class _NotesProState extends State<NotesPro> {
   }
 }
 
-
 // ================= HOME PAGE =================
 class HomePage extends StatefulWidget {
   final List<Todo> todos;
@@ -985,7 +953,6 @@ class HomePage extends StatefulWidget {
   final VoidCallback saveData;
   final Function(String) onPlayVideo;
   final bool Function(String) isYouTubeLink;
-
 
   const HomePage({
     super.key,
@@ -1005,11 +972,9 @@ class HomePage extends StatefulWidget {
     required this.isYouTubeLink,
   });
 
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
-
 
 class _HomePageState extends State<HomePage> {
   String searchQuery = '';
@@ -1018,13 +983,11 @@ class _HomePageState extends State<HomePage> {
   Todo? dragTargetParent;
   Map<String, bool> _expandedState = {};
 
-
   @override
   void initState() {
     super.initState();
     _initializeExpandedState(widget.todos);
   }
-
 
   @override
   void didUpdateWidget(HomePage oldWidget) {
@@ -1033,7 +996,6 @@ class _HomePageState extends State<HomePage> {
       _initializeExpandedState(widget.todos);
     }
   }
-
 
   void _initializeExpandedState(List<Todo> todoList) {
     for (var todo in todoList) {
@@ -1046,11 +1008,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-
   List<Todo> get filteredTodos {
     return widget.todos.where((todo) => _matchesFilter(todo)).toList();
   }
-
 
   bool _matchesFilter(Todo todo) {
     if (widget.filterType == 'With Subtasks' && todo.subTodos.isEmpty) return false;
@@ -1065,7 +1025,6 @@ class _HomePageState extends State<HomePage> {
     return true;
   }
 
-
   bool _searchSubtasks(List<Todo> subtasks) {
     for (var sub in subtasks) {
       if (sub.title.toLowerCase().contains(searchQuery.toLowerCase())) return true;
@@ -1074,8 +1033,8 @@ class _HomePageState extends State<HomePage> {
     return false;
   }
 
-
   void _toggleSelection(String id) {
+    if (!mounted) return;
     setState(() {
       if (selectedIds.contains(id)) {
         selectedIds.remove(id);
@@ -1086,8 +1045,8 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-
   void _selectAll() {
+    if (!mounted) return;
     Set<String> ids = {};
     void collectIds(List<Todo> todoList) {
       for (var t in todoList) {
@@ -1102,36 +1061,36 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-
   void _clearSelection() {
+    if (!mounted) return;
     setState(() {
       selectedIds.clear();
       isSelectionMode = false;
     });
   }
 
-
   void _deleteSelected() {
     if (selectedIds.isEmpty) return;
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Selected'),
         content: Text('Are you sure you want to delete ${selectedIds.length} item(s)?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
+              if (!mounted) return;
               widget.onDeleteSelected(selectedIds.toList());
               setState(() {
                 selectedIds.clear();
                 isSelectionMode = false;
               });
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
             child: const Text('Delete'),
           ),
@@ -1140,12 +1099,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-
   // ================= BUILD TODO ITEM =================
   Widget buildTodoItem(Todo todo, int level) {
     if (!_expandedState.containsKey(todo.id)) _expandedState[todo.id] = false;
     bool isDragTarget = dragTargetParent == todo;
-
 
     List<Widget> noteWidgets = [];
     for (var note in todo.notes) {
@@ -1170,7 +1127,6 @@ class _HomePageState extends State<HomePage> {
         );
       }
     }
-
 
     List<Widget> linkWidgets = [];
     for (var link in todo.links) {
@@ -1214,7 +1170,6 @@ class _HomePageState extends State<HomePage> {
         );
       }
     }
-
 
     Widget listTile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1279,9 +1234,11 @@ class _HomePageState extends State<HomePage> {
                   _showDeleteConfirmDialog(todo);
                   break;
                 case 'expand':
-                  setState(() {
-                    _expandedState[todo.id] = !(_expandedState[todo.id] ?? false);
-                  });
+                  if (mounted) {
+                    setState(() {
+                      _expandedState[todo.id] = !(_expandedState[todo.id] ?? false);
+                    });
+                  }
                   break;
               }
             },
@@ -1354,11 +1311,9 @@ class _HomePageState extends State<HomePage> {
       },
     );
 
-
     List<Widget> children = [listTile];
     if (noteWidgets.isNotEmpty) children.addAll(noteWidgets);
     if (linkWidgets.isNotEmpty) children.addAll(linkWidgets);
-
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -1391,7 +1346,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
 
   List<Widget> _buildSubTasksList(List<Todo> subtasks, int level) {
     List<Widget> widgets = [];
@@ -1435,18 +1389,22 @@ class _HomePageState extends State<HomePage> {
             ),
             childWhenDragging: Opacity(opacity: 0.5, child: buildTodoItem(subtask, level)),
             onDragEnd: (details) {
-              setState(() {
-                dragTargetParent = null;
-              });
+              if (mounted) {
+                setState(() {
+                  dragTargetParent = null;
+                });
+              }
             },
             child: DragTarget<Todo>(
               onAccept: (dragged) {
                 if (dragged.isSubTask && subtask.isSubTask && dragged.parentId == subtask.parentId) {
                   widget.onSubTaskReorder(dragged, subtask);
                 }
-                setState(() {
-                  dragTargetParent = null;
-                });
+                if (mounted) {
+                  setState(() {
+                    dragTargetParent = null;
+                  });
+                }
               },
               onWillAccept: (dragged) {
                 if (dragged != null &&
@@ -1454,17 +1412,21 @@ class _HomePageState extends State<HomePage> {
                     dragged.isSubTask &&
                     subtask.isSubTask &&
                     dragged.parentId == subtask.parentId) {
-                  setState(() {
-                    dragTargetParent = subtask;
-                  });
+                  if (mounted) {
+                    setState(() {
+                      dragTargetParent = subtask;
+                    });
+                  }
                   return true;
                 }
                 return false;
               },
               onLeave: (dragged) {
-                setState(() {
-                  dragTargetParent = null;
-                });
+                if (mounted) {
+                  setState(() {
+                    dragTargetParent = null;
+                  });
+                }
               },
               builder: (context, candidateData, rejectedData) {
                 return buildTodoItem(subtask, level);
@@ -1478,7 +1440,6 @@ class _HomePageState extends State<HomePage> {
     return widgets;
   }
 
-
   void _showDeleteConfirmDialog(Todo todo) {
     List<String> parentChain = [];
     Todo? currentParent = _findParentOfTodo(todo);
@@ -1487,23 +1448,23 @@ class _HomePageState extends State<HomePage> {
       currentParent = _findParentOfTodo(currentParent);
     }
 
-
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Item'),
         content: Text('Are you sure you want to delete "${todo.title}"?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
+              if (!mounted) return;
               todo.parentChain = parentChain.isNotEmpty ? parentChain : null;
               widget.onDeleteTodo(todo);
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
             child: const Text('Delete'),
           ),
@@ -1512,11 +1473,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-
   Todo? _findParentOfTodo(Todo todo) {
     return _findParentOfTodoRecursive(todo, widget.todos);
   }
-
 
   Todo? _findParentOfTodoRecursive(Todo todo, List<Todo> todoList) {
     for (var item in todoList) {
@@ -1528,7 +1487,6 @@ class _HomePageState extends State<HomePage> {
     }
     return null;
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -1564,24 +1522,27 @@ class _HomePageState extends State<HomePage> {
           child: Padding(
             padding: const EdgeInsets.all(6.0),
             child: TextField(
+              cursorColor: Colors.deepPurple,
               decoration: InputDecoration(
                 hintText: 'Search...',
-                prefixIcon: const Icon(Icons.search, size: 18, color: Colors.white54),
+                prefixIcon: const Icon(Icons.search, size: 18, color: Colors.deepPurple),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
+                fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 isDense: true,
-                hintStyle: const TextStyle(color: Colors.white54),
+                hintStyle: TextStyle(color: Colors.grey.shade600),
               ),
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.deepPurple),
               onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
+                if (mounted) {
+                  setState(() {
+                    searchQuery = value;
+                  });
+                }
               },
             ),
           ),
@@ -1621,7 +1582,6 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-
           return ReorderableListView.builder(
             onReorder: widget.onMainListReorder,
             itemCount: filtered.length,
@@ -1639,8 +1599,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-
-// ================= RECYCLE BIN PAGE (with confirm dialogs) =================
+// ================= RECYCLE BIN PAGE =================
 class RecycleBinPage extends StatefulWidget {
   final List<Todo> recycleBin;
   final Function(Todo) onRestore;
@@ -1649,7 +1608,6 @@ class RecycleBinPage extends StatefulWidget {
   final VoidCallback onEmptyBin;
   final Function(String) onPlayVideo;
   final bool Function(String) isYouTubeLink;
-
 
   const RecycleBinPage({
     super.key,
@@ -1662,28 +1620,26 @@ class RecycleBinPage extends StatefulWidget {
     required this.isYouTubeLink,
   });
 
-
   @override
   State<RecycleBinPage> createState() => _RecycleBinPageState();
 }
-
 
 class _RecycleBinPageState extends State<RecycleBinPage> {
   void _confirmRestore(Todo todo) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Restore Item'),
         content: Text('Are you sure you want to restore "${todo.title}"?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              widget.onRestore(todo);
+              Navigator.pop(dialogContext);
+              if (mounted) widget.onRestore(todo);
             },
             child: const Text('Restore'),
           ),
@@ -1692,25 +1648,24 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     );
   }
 
-
   void _confirmPermanentDelete(Todo todo) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Permanently Delete'),
         content: Text(
           'Are you sure you want to permanently delete "${todo.title}"?\n\nThis action cannot be undone!',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
-              Navigator.pop(context);
-              widget.onDeletePermanently(todo);
+              Navigator.pop(dialogContext);
+              if (mounted) widget.onDeletePermanently(todo);
             },
             child: const Text('Delete Permanently'),
           ),
@@ -1718,7 +1673,6 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
       ),
     );
   }
-
 
   void _confirmRestoreAll() {
     if (widget.recycleBin.isEmpty) {
@@ -1729,18 +1683,18 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     }
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Restore All'),
         content: Text('Are you sure you want to restore all ${widget.recycleBin.length} items?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              widget.onRestoreAll();
+              Navigator.pop(dialogContext);
+              if (mounted) widget.onRestoreAll();
             },
             child: const Text('Restore All'),
           ),
@@ -1748,7 +1702,6 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
       ),
     );
   }
-
 
   void _confirmEmptyBin() {
     if (widget.recycleBin.isEmpty) {
@@ -1759,21 +1712,21 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     }
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Empty Recycle Bin'),
         content: Text(
           'Are you sure you want to permanently delete all ${widget.recycleBin.length} items?\n\nThis action cannot be undone!',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
-              Navigator.pop(context);
-              widget.onEmptyBin();
+              Navigator.pop(dialogContext);
+              if (mounted) widget.onEmptyBin();
             },
             child: const Text('Empty Bin'),
           ),
@@ -1781,7 +1734,6 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -1827,7 +1779,6 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         itemBuilder: (context, index) {
           final todo = widget.recycleBin[index];
 
-
           List<Widget> noteWidgets = [];
           for (var note in todo.notes) {
             if (note.trim().isNotEmpty) {
@@ -1851,7 +1802,6 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
               );
             }
           }
-
 
           List<Widget> linkWidgets = [];
           for (var link in todo.links) {
@@ -1896,7 +1846,6 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
             }
           }
 
-
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Padding(
@@ -1938,14 +1887,12 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
   }
 }
 
-
 // ================= FILTER PAGE =================
 class FilterPage extends StatefulWidget {
   final String currentFilter;
   final String currentStatus;
   final ValueChanged<String?> onFilterChanged;
   final ValueChanged<String?> onStatusChanged;
-
 
   const FilterPage({
     super.key,
@@ -1955,16 +1902,13 @@ class FilterPage extends StatefulWidget {
     required this.onStatusChanged,
   });
 
-
   @override
   State<FilterPage> createState() => _FilterPageState();
 }
 
-
 class _FilterPageState extends State<FilterPage> {
   late String _filter;
   late String _status;
-
 
   @override
   void initState() {
@@ -1973,22 +1917,24 @@ class _FilterPageState extends State<FilterPage> {
     _status = widget.currentStatus;
   }
 
-
   @override
   void didUpdateWidget(FilterPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.currentFilter != oldWidget.currentFilter) {
-      setState(() {
-        _filter = widget.currentFilter;
-      });
+      if (mounted) {
+        setState(() {
+          _filter = widget.currentFilter;
+        });
+      }
     }
     if (widget.currentStatus != oldWidget.currentStatus) {
-      setState(() {
-        _status = widget.currentStatus;
-      });
+      if (mounted) {
+        setState(() {
+          _status = widget.currentStatus;
+        });
+      }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -2014,7 +1960,7 @@ class _FilterPageState extends State<FilterPage> {
             value: 'All',
             groupValue: _filter,
             onChanged: (newValue) {
-              if (newValue != null) {
+              if (newValue != null && mounted) {
                 setState(() {
                   _filter = newValue;
                 });
@@ -2027,7 +1973,7 @@ class _FilterPageState extends State<FilterPage> {
             value: 'With Subtasks',
             groupValue: _filter,
             onChanged: (newValue) {
-              if (newValue != null) {
+              if (newValue != null && mounted) {
                 setState(() {
                   _filter = newValue;
                 });
@@ -2040,7 +1986,7 @@ class _FilterPageState extends State<FilterPage> {
             value: 'Without Subtasks',
             groupValue: _filter,
             onChanged: (newValue) {
-              if (newValue != null) {
+              if (newValue != null && mounted) {
                 setState(() {
                   _filter = newValue;
                 });
@@ -2059,7 +2005,7 @@ class _FilterPageState extends State<FilterPage> {
             value: 'All',
             groupValue: _status,
             onChanged: (newValue) {
-              if (newValue != null) {
+              if (newValue != null && mounted) {
                 setState(() {
                   _status = newValue;
                 });
@@ -2072,7 +2018,7 @@ class _FilterPageState extends State<FilterPage> {
             value: 'Completed',
             groupValue: _status,
             onChanged: (newValue) {
-              if (newValue != null) {
+              if (newValue != null && mounted) {
                 setState(() {
                   _status = newValue;
                 });
@@ -2085,7 +2031,7 @@ class _FilterPageState extends State<FilterPage> {
             value: 'Pending',
             groupValue: _status,
             onChanged: (newValue) {
-              if (newValue != null) {
+              if (newValue != null && mounted) {
                 setState(() {
                   _status = newValue;
                 });
@@ -2097,7 +2043,6 @@ class _FilterPageState extends State<FilterPage> {
       ),
     );
   }
-
 
   Widget _buildRadioTile({
     required String title,
@@ -2115,4 +2060,3 @@ class _FilterPageState extends State<FilterPage> {
     );
   }
 }
-
