@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'Nest/join_screen.dart';
-
-
 
 class NestApp extends StatelessWidget {
   const NestApp({super.key});
@@ -22,7 +21,6 @@ class NestApp extends StatelessWidget {
   }
 }
 
-/// Professional splash screen with nested animation
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -40,41 +38,29 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
-    // Controller for all animations (duration 2.5s for professional reveal)
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2500),
     );
-
-    // Fade in from 0 to 1 (smooth)
     _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.6, curve: Curves.easeOut)),
     );
-
-    // Scale from 0.85 to 1.0 (gentle pop)
     _scaleIn = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: const Interval(0.1, 0.7, curve: Curves.easeOutCubic)),
     );
-
-    // Subtle slide up for tagline (10px offset)
     _slideUp = Tween<double>(begin: 20.0, end: 0.0).animate(
       CurvedAnimation(parent: _controller, curve: const Interval(0.3, 0.9, curve: Curves.easeOutQuart)),
     );
-
-    // Start animation
     _controller.forward();
 
-    // Navigate to main screen after animation + delay (total visible ~3.2s)
+    // Navigate to MainScreen after animation
     Timer(const Duration(milliseconds: 3400), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (_, __, ___) => const MainScreen(),
             transitionDuration: const Duration(milliseconds: 600),
-            transitionsBuilder: (_, a, __, child) {
-              return FadeTransition(opacity: a, child: child);
-            },
+            transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: a, child: child),
           ),
         );
       }
@@ -90,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F5FE), // soft background like nest/communication
+      backgroundColor: const Color(0xFFF0F5FE),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -102,7 +88,6 @@ class _SplashScreenState extends State<SplashScreen>
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo + brand container
                       Transform.scale(
                         scale: _scaleIn.value,
                         child: Opacity(
@@ -123,8 +108,6 @@ class _SplashScreenState extends State<SplashScreen>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // Logo placeholder — replace with your actual asset
-                                // (using a nested circle + icon to represent "nest")
                                 Container(
                                   width: 140,
                                   height: 140,
@@ -143,7 +126,6 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 24),
-                                // Brand name "Nest"
                                 const Text(
                                   'Nest',
                                   style: TextStyle(
@@ -154,7 +136,6 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                // Brand line / descriptor
                                 const Text(
                                   'communication',
                                   style: TextStyle(
@@ -170,11 +151,10 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 40),
-                      // Tagline with slide + fade (professional touch)
                       Transform.translate(
                         offset: Offset(0, _slideUp.value),
                         child: Opacity(
-                          opacity: _fadeIn.value * 0.9, // slightly more subtle
+                          opacity: _fadeIn.value * 0.9,
                           child: const Text(
                             'connect • share • grow',
                             style: TextStyle(
@@ -187,7 +167,6 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Subtle animated indicator (progress)
                       Opacity(
                         opacity: _fadeIn.value * 0.7,
                         child: const CircularProgressIndicator(
@@ -207,33 +186,23 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-/// Dummy main screen (after splash)
+// ✅ MAIN SCREEN (now the actual hub – no auto‑redirect)
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Automatically redirect to JoinScreen after a short delay
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Timer(const Duration(seconds: 1), () {
-        if (context.mounted) {
-          Navigator.of(context).pushReplacement(
-            PageRouteBuilder(
-              pageBuilder: (_, __, ___) => JoinScreen(),
-              transitionDuration: const Duration(milliseconds: 800),
-              transitionsBuilder: (_, a, __, child) {
-                return FadeTransition(opacity: a, child: child);
-              },
-            ),
-          );
-        }
-      });
-    });
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nest'),
-        backgroundColor: const Color(0xFFE1EAF2),
+        // BACK BUTTON – pops the whole NestApp route
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+          tooltip: 'Back to dashboard',
+        ),
+        title: const Text('Nest',style: TextStyle(color: Colors.white),),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF2B5F8A),
         elevation: 0,
       ),
       body: Container(
@@ -248,7 +217,7 @@ class MainScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.done_outline, size: 80, color: Color(0xFF2B5F8A)),
+              const Icon(Icons.home, size: 80, color: Color(0xFF2B5F8A)),
               const SizedBox(height: 24),
               Text(
                 'Welcome to Nest',
@@ -267,15 +236,45 @@ class MainScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 40),
-              // Loading indicator for smooth transition
-              const CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2B5F8A)),
+              // Button to go to JoinScreen
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const JoinScreenWrapper()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2B5F8A),
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+                child: const Text('Go to Join', style: TextStyle(fontSize: 18, color: Colors.white)),
+              ),
+              const SizedBox(height: 20),
+              // Extra back button (optional)
+              TextButton(
+                onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                child: const Text('Exit Nest', style: TextStyle(color: Colors.red)),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+// ✅ WRAPPER for JoinScreen to give it a back button
+class JoinScreenWrapper extends StatelessWidget {
+  const JoinScreenWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Assuming JoinScreen is imported from 'Nest/join_screen.dart'
+    return Scaffold(
+
+      body: JoinScreen(), // your original JoinScreen
     );
   }
 }

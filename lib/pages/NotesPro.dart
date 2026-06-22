@@ -2,8 +2,50 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:io';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart'; // ADDED
+
+// ================= IMAGE HELPERS =================
+Future<String?> saveImageToLocal(File imageFile) async {
+  try {
+    Directory? dir;
+    try {
+      dir = await getApplicationDocumentsDirectory();
+      final testFile = File('${dir.path}/test.txt');
+      await testFile.writeAsString('test');
+      await testFile.delete();
+    } catch (e) {
+      print('⚠️ Documents dir not writable, using temp');
+      dir = await getTemporaryDirectory();
+    }
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final String filePath = '${dir.path}/$fileName';
+    final savedImage = await imageFile.copy(filePath);
+    if (await savedImage.exists()) {
+      print('✅ File saved: $filePath');
+      return savedImage.path;
+    } else {
+      print('❌ File copy failed');
+      return null;
+    }
+  } catch (e) {
+    print('❌ saveImageToLocal error: $e');
+    return null;
+  }
+}
+
+void deleteImageFile(String path) {
+  if (path.startsWith('base64:')) return;
+  final file = File(path);
+  if (file.existsSync()) {
+    file.deleteSync();
+    print('🗑️ Deleted file: $path');
+  }
+}
 
 // ================= MODEL =================
 class Todo {
@@ -20,6 +62,7 @@ class Todo {
   int order;
   List<String> notes;
   List<String> links;
+  List<String> photos;
 
   Todo({
     required this.id,
@@ -35,6 +78,7 @@ class Todo {
     this.order = 0,
     this.notes = const [],
     this.links = const [],
+    this.photos = const [],
   }) : subTodos = subTodos ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -51,6 +95,7 @@ class Todo {
     'order': order,
     'notes': notes,
     'links': links,
+    'photos': photos,
   };
 
   factory Todo.fromJson(Map<String, dynamic> json) {
@@ -62,6 +107,9 @@ class Todo {
         links.add(json['videoUrl']);
       }
     }
+    List<String> photos = json['photos'] != null
+        ? List<String>.from(json['photos'])
+        : [];
     return Todo(
       id: json['id'],
       title: json['title'],
@@ -86,6 +134,7 @@ class Todo {
       order: json['order'] ?? 0,
       notes: json['notes'] != null ? List<String>.from(json['notes']) : [],
       links: links,
+      photos: photos,
     );
   }
 }
@@ -154,8 +203,8 @@ class _NotesProMainScState extends State<NotesProMainSc> {
     if (mounted) setState(() {});
   }
 
-  // ================= CRUD OPERATIONS =================
-  void addTodo(String title, List<String> notes, List<String> links) {
+  // ================= CRUD OPERATIONS (with photos) =================
+  void addTodo(String title, List<String> notes, List<String> links, List<String> photos) {
     if (!mounted) return;
     setState(() {
       final newTodo = Todo(
@@ -166,13 +215,14 @@ class _NotesProMainScState extends State<NotesProMainSc> {
         subTodos: [],
         notes: notes.where((n) => n.trim().isNotEmpty).toList(),
         links: links.where((l) => l.trim().isNotEmpty).toList(),
+        photos: photos.where((p) => p.trim().isNotEmpty).toList(),
       );
       todos.add(newTodo);
     });
     saveData();
   }
 
-  void addSubTodo(Todo parent, String title, List<String> notes, List<String> links) {
+  void addSubTodo(Todo parent, String title, List<String> notes, List<String> links, List<String> photos) {
     if (!mounted) return;
     setState(() {
       parent.subTodos.add(Todo(
@@ -185,17 +235,19 @@ class _NotesProMainScState extends State<NotesProMainSc> {
         subTodos: [],
         notes: notes.where((n) => n.trim().isNotEmpty).toList(),
         links: links.where((l) => l.trim().isNotEmpty).toList(),
+        photos: photos.where((p) => p.trim().isNotEmpty).toList(),
       ));
     });
     saveData();
   }
 
-  void editTodo(Todo todo, String newTitle, List<String> newNotes, List<String> newLinks) {
+  void editTodo(Todo todo, String newTitle, List<String> newNotes, List<String> newLinks, List<String> newPhotos) {
     if (!mounted) return;
     setState(() {
       todo.title = newTitle;
       todo.notes = newNotes.where((n) => n.trim().isNotEmpty).toList();
       todo.links = newLinks.where((l) => l.trim().isNotEmpty).toList();
+      todo.photos = newPhotos.where((p) => p.trim().isNotEmpty).toList();
       todo.updatedAt = DateTime.now();
     });
     saveData();
@@ -322,6 +374,9 @@ class _NotesProMainScState extends State<NotesProMainSc> {
   }
 
   void permanentlyDelete(Todo todo) {
+    for (var path in todo.photos) {
+      deleteImageFile(path);
+    }
     if (!mounted) return;
     setState(() {
       recycleBin.remove(todo);
@@ -330,6 +385,11 @@ class _NotesProMainScState extends State<NotesProMainSc> {
   }
 
   void emptyBin() {
+    for (var todo in recycleBin) {
+      for (var path in todo.photos) {
+        deleteImageFile(path);
+      }
+    }
     if (!mounted) return;
     setState(() {
       recycleBin.clear();
@@ -464,7 +524,8 @@ class _NotesProMainScState extends State<NotesProMainSc> {
     initialTitle: '',
     initialNotes: const [],
     initialLinks: const [],
-    onSave: (title, notes, links) => addTodo(title, notes, links),
+    initialPhotos: const [],
+    onSave: (title, notes, links, photos) => addTodo(title, notes, links, photos),
   );
 
   void _showEditDialog(Todo todo) => _showTodoDialog(
@@ -472,7 +533,8 @@ class _NotesProMainScState extends State<NotesProMainSc> {
     initialTitle: todo.title,
     initialNotes: todo.notes,
     initialLinks: todo.links,
-    onSave: (newTitle, notes, links) => editTodo(todo, newTitle, notes, links),
+    initialPhotos: todo.photos,
+    onSave: (newTitle, notes, links, photos) => editTodo(todo, newTitle, notes, links, photos),
   );
 
   void _showAddSubDialog(Todo parent) => _showTodoDialog(
@@ -480,16 +542,18 @@ class _NotesProMainScState extends State<NotesProMainSc> {
     initialTitle: '',
     initialNotes: const [],
     initialLinks: const [],
-    onSave: (newTitle, notes, links) => addSubTodo(parent, newTitle, notes, links),
+    initialPhotos: const [],
+    onSave: (newTitle, notes, links, photos) => addSubTodo(parent, newTitle, notes, links, photos),
   );
 
-  // ================= UNIVERSAL DIALOG =================
+  // ================= UNIVERSAL DIALOG (with photos, test button removed) =================
   void _showTodoDialog({
     required String title,
     required String initialTitle,
     required List<String> initialNotes,
     required List<String> initialLinks,
-    required Function(String, List<String>, List<String>) onSave,
+    required List<String> initialPhotos,
+    required Function(String, List<String>, List<String>, List<String>) onSave,
   }) {
     final titleController = TextEditingController(text: initialTitle);
 
@@ -502,6 +566,9 @@ class _NotesProMainScState extends State<NotesProMainSc> {
     for (var link in initialLinks) {
       linkControllers.add(TextEditingController(text: link));
     }
+
+    // photoPaths declared outside StatefulBuilder to persist across rebuilds
+    List<String> photoPaths = List.from(initialPhotos);
 
     showDialog(
       context: context,
@@ -524,8 +591,93 @@ class _NotesProMainScState extends State<NotesProMainSc> {
               }
             }
 
+            void pickImage() async {
+              print('📸 pickImage called');
+              if (photoPaths.length >= 3) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Maximum 3 photos allowed')),
+                );
+                return;
+              }
+
+              final picker = ImagePicker();
+              final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
+
+              if (picked == null) {
+                print('❌ User cancelled photo pick');
+                return;
+              }
+
+              print('📸 Picked file: ${picked.path}');
+              final file = File(picked.path);
+              final int fileSize = await file.length();
+              print('📏 File size: $fileSize bytes');
+              const int maxSize = 5 * 1024 * 1024;
+              if (fileSize > maxSize) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Image too large (max 5 MB)'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              bool savedAsFile = false;
+              String? savedPath;
+              try {
+                savedPath = await saveImageToLocal(file);
+                if (savedPath != null && await File(savedPath).exists()) {
+                  savedAsFile = true;
+                  print('✅ Saved as file: $savedPath');
+                }
+              } catch (e) {
+                print('⚠️ File save error: $e');
+              }
+
+              if (savedAsFile && savedPath != null) {
+                setDialogState(() {
+                  photoPaths.add(savedPath!);
+                  print('📋 Added file path, photoPaths now: $photoPaths');
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Photo added!')),
+                );
+              } else {
+                print('⚠️ Falling back to base64');
+                try {
+                  final bytes = await picked.readAsBytes();
+                  final base64Str = base64Encode(bytes);
+                  final base64Prefixed = 'base64:$base64Str';
+                  setDialogState(() {
+                    photoPaths.add(base64Prefixed);
+                    print('📋 Added base64, photoPaths now: $photoPaths');
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Photo added (base64)')),
+                  );
+                } catch (e) {
+                  print('❌ Base64 encoding failed: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to process image: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            }
+
+            void removePhoto(int index) {
+              setDialogState(() {
+                photoPaths.removeAt(index);
+                print('🗑️ Removed photo at index $index, now: $photoPaths');
+              });
+            }
+
             bool canAddNote = noteControllers.length < 3;
             bool canAddLink = linkControllers.length < 3;
+            bool canAddPhoto = photoPaths.length < 3;
 
             return AlertDialog(
               title: Text(
@@ -559,8 +711,9 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                           onSelected: (value) {
                             if (value == 'note') addNote();
                             if (value == 'link') addLink();
+                            if (value == 'photo') pickImage();
                           },
-                          enabled: canAddNote || canAddLink,
+                          enabled: canAddNote || canAddLink || canAddPhoto,
                           itemBuilder: (context) {
                             List<PopupMenuEntry<String>> items = [];
                             if (canAddNote) {
@@ -591,6 +744,20 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                                 ),
                               );
                             }
+                            if (canAddPhoto) {
+                              items.add(
+                                const PopupMenuItem(
+                                  value: 'photo',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.photo, size: 20),
+                                      SizedBox(width: 8),
+                                      Text('Add photo'),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
                             if (items.isEmpty) {
                               items.add(
                                 const PopupMenuItem(
@@ -611,7 +778,7 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: (canAddNote || canAddLink) ? Colors.deepPurple : Colors.grey,
+                                color: (canAddNote || canAddLink || canAddPhoto) ? Colors.deepPurple : Colors.grey,
                                 width: 2,
                               ),
                             ),
@@ -619,7 +786,7 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                             child: Icon(
                               Icons.add,
                               size: 24,
-                              color: (canAddNote || canAddLink) ? Colors.deepPurple : Colors.grey,
+                              color: (canAddNote || canAddLink || canAddPhoto) ? Colors.deepPurple : Colors.grey,
                             ),
                           ),
                         ),
@@ -716,7 +883,7 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                                       child: TextField(
                                         controller: controller,
                                         decoration: const InputDecoration(
-                                          hintText: 'YouTube URL...',
+                                          hintText: 'Enter URL...',
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.all(Radius.circular(8)),
                                           ),
@@ -741,6 +908,80 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                       ),
                       const SizedBox(height: 12),
                     ],
+
+                    // ========== PHOTOS SECTION (test button removed) ==========
+                    Row(
+                      children: [
+                        Text(
+                          'Photos (${photoPaths.length}/3)',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const Spacer(),
+                        // TEST BUTTON REMOVED
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    if (photoPaths.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: photoPaths.asMap().entries.map((entry) {
+                            int idx = entry.key;
+                            String path = entry.value;
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: _buildPhotoWidget(path, 60, 60),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: GestureDetector(
+                                    onTap: () => removePhoto(idx),
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      padding: const EdgeInsets.all(2),
+                                      child: const Icon(Icons.close, size: 14, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else ...[
+                      const Text(
+                        'No photos added yet',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+
+                    const Text(
+                      'Max 3 Descriptions,\nMax 3 Links,\nMax 3 photos, each up to 5 MB',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -766,7 +1007,8 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                         .map((c) => c.text.trim())
                         .where((s) => s.isNotEmpty)
                         .toList();
-                    onSave(newTitle, notes, links);
+                    print('💾 Saving: title="$newTitle", photos=$photoPaths');
+                    onSave(newTitle, notes, links, photoPaths);
                     Navigator.pop(dialogContext);
                   },
                   style: ElevatedButton.styleFrom(
@@ -783,6 +1025,92 @@ class _NotesProMainScState extends State<NotesProMainSc> {
         );
       },
     );
+  }
+
+  // ========== PHOTO VIEWER ==========
+  void _showPhotoViewer(BuildContext context, String path) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              panEnabled: true,
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: _buildPhotoWidget(
+                  path,
+                  double.infinity,
+                  double.infinity,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ========== PHOTO WIDGET BUILDER ==========
+  Widget _buildPhotoWidget(String path, double width, double height, {BoxFit fit = BoxFit.cover}) {
+    if (path.startsWith('base64:')) {
+      try {
+        final base64Str = path.substring(7);
+        final bytes = base64Decode(base64Str);
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stack) {
+            print('❌ Image.memory error: $error');
+            return Container(
+              width: width,
+              height: height,
+              color: Colors.red[100],
+              child: const Icon(Icons.broken_image, color: Colors.red),
+            );
+          },
+        );
+      } catch (e) {
+        print('❌ Base64 decode error: $e');
+        return Container(
+          width: width,
+          height: height,
+          color: Colors.grey[300],
+          child: const Icon(Icons.error, color: Colors.red),
+        );
+      }
+    } else {
+      return Image.file(
+        File(path),
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stack) {
+          print('❌ Image.file error for: $path');
+          return Container(
+            width: width,
+            height: height,
+            color: Colors.red[100],
+            child: const Icon(Icons.broken_image, color: Colors.red),
+          );
+        },
+      );
+    }
   }
 
   // ================= YOUTUBE LINK CHECK =================
@@ -858,6 +1186,66 @@ class _NotesProMainScState extends State<NotesProMainSc> {
     }
   }
 
+  // ================= SHARE FUNCTION (with photos) =================
+  void _shareTodo(Todo todo) async {
+    final buffer = StringBuffer();
+    buffer.writeln('📌 ${todo.title}');
+    if (todo.isCompleted) buffer.writeln('✅ Completed');
+    else buffer.writeln('⏳ Pending');
+
+    if (todo.notes.isNotEmpty) {
+      buffer.writeln('\n📝 Notes:');
+      for (var note in todo.notes) {
+        buffer.writeln('  • $note');
+      }
+    }
+
+    if (todo.links.isNotEmpty) {
+      buffer.writeln('\n🔗 Links:');
+      for (var link in todo.links) {
+        buffer.writeln('  • $link');
+      }
+    }
+
+    if (todo.subTodos.isNotEmpty) {
+      buffer.writeln('\n📋 Subtasks: ${todo.subTodos.length} subtask(s)');
+    }
+
+    final text = buffer.toString();
+
+    // Prepare photo files
+    List<XFile> files = [];
+    for (var photoPath in todo.photos) {
+      try {
+        File file;
+        if (photoPath.startsWith('base64:')) {
+          // Decode base64 and write to a temporary file
+          final base64Str = photoPath.substring(7);
+          final bytes = base64Decode(base64Str);
+          final tempDir = await getTemporaryDirectory();
+          final tempFile = File('${tempDir.path}/photo_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          await tempFile.writeAsBytes(bytes);
+          file = tempFile;
+        } else {
+          // Use the existing file
+          file = File(photoPath);
+          if (!await file.exists()) continue; // skip if missing
+        }
+        files.add(XFile(file.path));
+      } catch (e) {
+        print('⚠️ Error preparing photo for share: $e');
+      }
+    }
+
+    if (files.isEmpty) {
+      // No photos, share text only
+      await Share.share(text);
+    } else {
+      // Share text + images
+      await Share.shareXFiles(files, text: text);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -880,6 +1268,9 @@ class _NotesProMainScState extends State<NotesProMainSc> {
             saveData: saveData,
             onPlayVideo: _playVideo,
             isYouTubeLink: _isYouTubeLink,
+            buildPhotoWidget: _buildPhotoWidget,
+            onPhotoTap: _showPhotoViewer,
+            onShare: _shareTodo, // SHARE CALLBACK
           ),
           Container(),
           RecycleBinPage(
@@ -891,6 +1282,8 @@ class _NotesProMainScState extends State<NotesProMainSc> {
             onEmptyBin: emptyBin,
             onPlayVideo: _playVideo,
             isYouTubeLink: _isYouTubeLink,
+            buildPhotoWidget: _buildPhotoWidget,
+            onPhotoTap: _showPhotoViewer,
           ),
           FilterPage(
             key: ValueKey('filter_${filterType}_$completionFilter'),
@@ -953,6 +1346,9 @@ class HomePage extends StatefulWidget {
   final VoidCallback saveData;
   final Function(String) onPlayVideo;
   final bool Function(String) isYouTubeLink;
+  final Widget Function(String, double, double, {BoxFit fit}) buildPhotoWidget;
+  final void Function(BuildContext, String) onPhotoTap;
+  final void Function(Todo) onShare; // SHARE
 
   const HomePage({
     super.key,
@@ -970,6 +1366,9 @@ class HomePage extends StatefulWidget {
     required this.saveData,
     required this.onPlayVideo,
     required this.isYouTubeLink,
+    required this.buildPhotoWidget,
+    required this.onPhotoTap,
+    required this.onShare,
   });
 
   @override
@@ -1099,7 +1498,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ================= BUILD TODO ITEM =================
+  // ================= BUILD TODO ITEM (with photos) =================
   Widget buildTodoItem(Todo todo, int level) {
     if (!_expandedState.containsKey(todo.id)) _expandedState[todo.id] = false;
     bool isDragTarget = dragTargetParent == todo;
@@ -1171,6 +1570,24 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
+    List<Widget> photoWidgets = [];
+    for (var path in todo.photos) {
+      if (path.isNotEmpty) {
+        photoWidgets.add(
+          Padding(
+            padding: const EdgeInsets.all(2.0),
+            child: GestureDetector(
+              onTap: () => widget.onPhotoTap(context, path),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: widget.buildPhotoWidget(path, 50, 50),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
     Widget listTile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       leading: isSelectionMode
@@ -1230,6 +1647,9 @@ class _HomePageState extends State<HomePage> {
                 case 'edit':
                   widget.onEditTodo(todo);
                   break;
+                case 'share':
+                  widget.onShare(todo);
+                  break;
                 case 'delete':
                   _showDeleteConfirmDialog(todo);
                   break;
@@ -1266,6 +1686,18 @@ class _HomePageState extends State<HomePage> {
                       Icon(Icons.edit, size: 18),
                       SizedBox(width: 8),
                       Text('Edit'),
+                    ],
+                  ),
+                ),
+              );
+              menuItems.add(
+                const PopupMenuItem(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      Icon(Icons.share, size: 18),
+                      SizedBox(width: 8),
+                      Text('Share'),
                     ],
                   ),
                 ),
@@ -1314,6 +1746,18 @@ class _HomePageState extends State<HomePage> {
     List<Widget> children = [listTile];
     if (noteWidgets.isNotEmpty) children.addAll(noteWidgets);
     if (linkWidgets.isNotEmpty) children.addAll(linkWidgets);
+    if (photoWidgets.isNotEmpty) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: photoWidgets,
+          ),
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -1492,8 +1936,15 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+
+        // BACK BUTTON (left arrow)
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+          tooltip: 'Back',
+        ),
         title: const Text(
-          '4th Gen Indexing ToDos',
+          'ToDos Gen 4.0',
           style: TextStyle(color: Colors.white),
         ),
         centerTitle: true,
@@ -1608,6 +2059,8 @@ class RecycleBinPage extends StatefulWidget {
   final VoidCallback onEmptyBin;
   final Function(String) onPlayVideo;
   final bool Function(String) isYouTubeLink;
+  final Widget Function(String, double, double, {BoxFit fit}) buildPhotoWidget;
+  final void Function(BuildContext, String) onPhotoTap;
 
   const RecycleBinPage({
     super.key,
@@ -1618,6 +2071,8 @@ class RecycleBinPage extends StatefulWidget {
     required this.onEmptyBin,
     required this.onPlayVideo,
     required this.isYouTubeLink,
+    required this.buildPhotoWidget,
+    required this.onPhotoTap,
   });
 
   @override
@@ -1846,6 +2301,24 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
             }
           }
 
+          List<Widget> photoWidgets = [];
+          for (var path in todo.photos) {
+            if (path.isNotEmpty) {
+              photoWidgets.add(
+                Padding(
+                  padding: const EdgeInsets.all(2.0),
+                  child: GestureDetector(
+                    onTap: () => widget.onPhotoTap(context, path),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: widget.buildPhotoWidget(path, 50, 50),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }
+
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Padding(
@@ -1877,6 +2350,15 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
                   ),
                   ...noteWidgets,
                   ...linkWidgets,
+                  if (photoWidgets.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: photoWidgets,
+                      ),
+                    ),
                 ],
               ),
             ),

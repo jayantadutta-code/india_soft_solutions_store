@@ -457,6 +457,12 @@ class _UserListPageState extends State<UserListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // BACK BUTTON (left arrow)
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+          tooltip: 'Back',
+        ),
         title: Text('Health Tracker - Users'),
         centerTitle: true,
         backgroundColor: Colors.blue,
