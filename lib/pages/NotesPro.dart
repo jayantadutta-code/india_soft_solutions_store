@@ -546,7 +546,7 @@ class _NotesProMainScState extends State<NotesProMainSc> {
     onSave: (newTitle, notes, links, photos) => addSubTodo(parent, newTitle, notes, links, photos),
   );
 
-  // ================= UNIVERSAL DIALOG (with photos, test button removed) =================
+  // ================= UNIVERSAL DIALOG (with photos) =================
   void _showTodoDialog({
     required String title,
     required String initialTitle,
@@ -909,7 +909,7 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                       const SizedBox(height: 12),
                     ],
 
-                    // ========== PHOTOS SECTION (test button removed) ==========
+                    // Photos section
                     Row(
                       children: [
                         Text(
@@ -920,7 +920,6 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                           ),
                         ),
                         const Spacer(),
-                        // TEST BUTTON REMOVED
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -973,7 +972,6 @@ class _NotesProMainScState extends State<NotesProMainSc> {
                       ),
                       const SizedBox(height: 8),
                     ],
-
 
                     const Text(
                       'Max 3 Descriptions,\nMax 3 Links,\nMax 3 photos, each up to 5 MB',
@@ -1186,63 +1184,78 @@ class _NotesProMainScState extends State<NotesProMainSc> {
     }
   }
 
-  // ================= SHARE FUNCTION (with photos) =================
+  // ================= RECURSIVE SHARE (including all subtasks and their photos) =================
   void _shareTodo(Todo todo) async {
     final buffer = StringBuffer();
-    buffer.writeln('📌 ${todo.title}');
-    if (todo.isCompleted) buffer.writeln('✅ Completed');
-    else buffer.writeln('⏳ Pending');
+    final List<XFile> photoFiles = [];
 
-    if (todo.notes.isNotEmpty) {
-      buffer.writeln('\n📝 Notes:');
-      for (var note in todo.notes) {
-        buffer.writeln('  • $note');
+    Future<void> collect(Todo t, int level) async {
+      final indent = '  ' * level;
+      buffer.writeln('$indent📌 ${t.title}');
+      if (t.isCompleted) buffer.writeln('$indent  ✅ Completed');
+      else buffer.writeln('$indent  ⏳ Pending');
+
+      if (t.notes.isNotEmpty) {
+        buffer.writeln('$indent  📝 Notes:');
+        for (var note in t.notes) {
+          buffer.writeln('$indent    • $note');
+        }
+      }
+      if (t.links.isNotEmpty) {
+        buffer.writeln('$indent  🔗 Links:');
+        for (var link in t.links) {
+          buffer.writeln('$indent    • $link');
+        }
+      }
+
+      // Collect photos from this todo
+      for (var photoPath in t.photos) {
+        try {
+          if (photoPath.startsWith('base64:')) {
+            final bytes = base64Decode(photoPath.substring(7));
+            final tempDir = await getTemporaryDirectory();
+            final tempFile = File('${tempDir.path}/photo_${DateTime.now().millisecondsSinceEpoch}.jpg');
+            await tempFile.writeAsBytes(bytes);
+            photoFiles.add(XFile(tempFile.path));
+          } else {
+            final file = File(photoPath);
+            if (await file.exists()) {
+              photoFiles.add(XFile(file.path));
+            }
+          }
+        } catch (e) {
+          print('⚠️ Error adding photo: $e');
+        }
+      }
+
+      // Recurse into subtasks
+      for (var sub in t.subTodos) {
+        await collect(sub, level + 1);
       }
     }
 
-    if (todo.links.isNotEmpty) {
-      buffer.writeln('\n🔗 Links:');
-      for (var link in todo.links) {
-        buffer.writeln('  • $link');
-      }
-    }
-
-    if (todo.subTodos.isNotEmpty) {
-      buffer.writeln('\n📋 Subtasks: ${todo.subTodos.length} subtask(s)');
-    }
+    await collect(todo, 0);
 
     final text = buffer.toString();
 
-    // Prepare photo files
-    List<XFile> files = [];
-    for (var photoPath in todo.photos) {
-      try {
-        File file;
-        if (photoPath.startsWith('base64:')) {
-          // Decode base64 and write to a temporary file
-          final base64Str = photoPath.substring(7);
-          final bytes = base64Decode(base64Str);
-          final tempDir = await getTemporaryDirectory();
-          final tempFile = File('${tempDir.path}/photo_${DateTime.now().millisecondsSinceEpoch}.jpg');
-          await tempFile.writeAsBytes(bytes);
-          file = tempFile;
-        } else {
-          // Use the existing file
-          file = File(photoPath);
-          if (!await file.exists()) continue; // skip if missing
-        }
-        files.add(XFile(file.path));
-      } catch (e) {
-        print('⚠️ Error preparing photo for share: $e');
+    // Try to share with photos on all platforms
+    try {
+      if (photoFiles.isEmpty) {
+        await Share.share(text);
+      } else {
+        await Share.shareXFiles(photoFiles, text: text);
       }
-    }
-
-    if (files.isEmpty) {
-      // No photos, share text only
+    } catch (e) {
+      // Fallback: share just text (likely on desktop where file sharing is not supported)
       await Share.share(text);
-    } else {
-      // Share text + images
-      await Share.shareXFiles(files, text: text);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photos could not be attached on this platform – text only.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -1270,7 +1283,7 @@ class _NotesProMainScState extends State<NotesProMainSc> {
             isYouTubeLink: _isYouTubeLink,
             buildPhotoWidget: _buildPhotoWidget,
             onPhotoTap: _showPhotoViewer,
-            onShare: _shareTodo, // SHARE CALLBACK
+            onShare: _shareTodo, // SHARE CALLBACK (now recursive)
           ),
           Container(),
           RecycleBinPage(
@@ -1936,15 +1949,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-
-        // BACK BUTTON (left arrow)
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-          tooltip: 'Back',
-        ),
         title: const Text(
-          'ToDos Gen 4.0',
+          '4th Gen Indexing ToDos',
           style: TextStyle(color: Colors.white),
         ),
         centerTitle: true,
